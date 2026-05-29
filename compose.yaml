@@ -1,0 +1,28 @@
+
+services:
+    db:
+        image: postgres:16
+        environment:
+            POSTGRES_USER: postgres
+            POSTGRES_PASSWORD: secret
+
+        volumes:
+            - postgres_data:/var/lib/postgresql/data
+
+    redis:
+        image: redis:7
+    
+    localstack:
+        image: localstack/localstack
+
+
+
+    app:
+        build: .
+        depends_on:
+            - db
+        ports: 
+            - "8000:8000"
+        
+volumes:
+    postgres_data:
