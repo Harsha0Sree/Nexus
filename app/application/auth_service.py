@@ -1,4 +1,9 @@
+import uuid
+
+from pwdlib import PasswordHash
+
 from app.bizlogic.entities import User
+from app.infrastructure.repositories import UserRepository
 
 
 class UserAlreadyExists(Exception):
@@ -6,8 +11,22 @@ class UserAlreadyExists(Exception):
 
 
 class AuthService:
-    def register(self, email: str) -> User:
-        existing_user = repository.get_user_by_email(email)
+    def __init__(self, repository: UserRepository):
+        self.repository = repository
+
+    async def register(self, email: str, password: str) -> User:
+        existing_user = await self.repository.get_user_by_email(email)
         if existing_user:
             raise UserAlreadyExists()
-        new_user = repository.create(User())
+        user = User(
+            id=uuid.uuid4(),
+            email=email,
+            password_hash=PasswordHash.recommended().hash(password),
+        )
+        return self.repository.create(user)
+
+    async def get_user_by_email(self, email: str) -> User | None:
+        user = await self.repository.get_user_by_email(email)
+        if user:
+            return user
+        return None
