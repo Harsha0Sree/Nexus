@@ -1,6 +1,6 @@
-import datetime
 import hashlib
 import uuid
+from datetime import UTC, datetime
 from pathlib import Path
 from uuid import UUID
 
@@ -16,16 +16,18 @@ class DocumentService:
         self.storage = storage
         self.repository = repository
 
-    async def create_document(self, user_id: UUID, file_name: str, content: bytes):
+    async def create_document(self, file_name: str, content: bytes, user_id: UUID):
         content_hash = hashlib.sha512(content).hexdigest()
         key = f"users/{uuid.uuid4()}{Path(file_name).suffix}"
-        await self.storage.upload(content, file_name, user_id)
+
+        await self.storage.upload(content, key)
         document = Document(
             id=uuid.uuid4(),
             user_id=user_id,
             file_name=file_name,
             content_hash=content_hash,
             s3_key=key,
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(UTC),
         )
-        self.repository.create(document)
+        await self.repository.create(document)
+        return document

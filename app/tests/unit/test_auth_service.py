@@ -43,3 +43,5 @@ async def test_check_existing_user(setup):
     await service.register(user)
     with pytest.raises(UserAlreadyExists):
         await service.register(user)
+    assert await service.get_user_by_email(user.email) is not None
+    
