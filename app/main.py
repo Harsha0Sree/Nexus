@@ -3,7 +3,7 @@ from pydantic import BaseModel
 
 from app.application.auth_service import AuthService
 from app.infrastructure.postgres import create_pool_connection
-from app.infrastructure.repositries import PostgresUserRepository
+from app.infrastructure.repositories import PostgresUserRepository
 
 app = FastAPI()
 pool = create_pool_connection()

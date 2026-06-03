@@ -23,7 +23,7 @@ def upgrade() -> None:
                CREATE TABLE documents(
                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                user_id UUID NOT NULL REFERENCES users(id),
-               filename TEXT NOT NULL UNIQUE,
+               file_name TEXT NOT NULL UNIQUE,
                content_hash TEXT NOT NULL,
                s3_key TEXT NOT NULL,
                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP);

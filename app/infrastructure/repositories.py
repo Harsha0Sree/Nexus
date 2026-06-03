@@ -1,8 +1,6 @@
-import uuid
+from uuid import UUID
 
-import boto3
-
-from app.bizlogic.entities import User
+from app.bizlogic.entities import Document, User
 from app.bizlogic.ports import DocumentRepository, UserRepository
 
 
@@ -16,7 +14,7 @@ class PostgresUserRepository(UserRepository):
                 """INSERT INTO users(email,password_hash,id) VALUES($1,$2,$3)""",
                 user.email,
                 user.password_hash,
-                uuid.uuid4(),
+                user.id,
             )
 
             return user
@@ -32,19 +30,34 @@ class PostgresUserRepository(UserRepository):
 
 
 class PostgresDocumentRepository(DocumentRepository):
-    def __init__(self):
-        self.client = boto3.client(
-            "s3",
-            endpoint_url="http://localhost:4566",
-            aws_access_key_id="test",
-            aws_secret_access_key="test",
-            region_name="us-east-1",
-        )
+    def __init__(self, pool):
+        self.pool = pool
 
-    async def create(self):
-        self.client.create_bucket(Bucket="Documents")
-        self.client.upload_file("sample.pdf", "Documents")
-        self.client.put_object(Bucket="Documents", Key="sample.pdf", Body="")
+    async def get_file_by_id(self, document_id: UUID):
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """SELECT * FROM documents WHERE id = ($1)""", document_id
+            )
+            if row:
+                return Document(
+                    file_name=row["filename"],
+                    user_id=row["user_id"],
+                    id=row["id"],
+                    content_hash=row["content_hash"],
+                    created_at=row["created_at"],
+                    s3_key=row["s3_key"],
+                )
+            return None
 
-    async def download(self):
-        self.client.get_object(Bucket="Documents", Key="sample.pdf")
+    async def create(self, document: Document):
+        async with self.pool.acquire() as conn:
+            row = await conn.execute(
+                """INSERT INTO documents(id,user_id,file_name,content_hash,s3_key,created_at) VALUES ($1,$2,$3,$4,$5,$6)""",
+                document.id,
+                document.user_id,
+                document.file_name,
+                document.content_hash,
+                document.s3_key,
+                document.created_at,
+            )
+            return row

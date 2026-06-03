@@ -14,7 +14,7 @@ class User:
 class Document:
     id: UUID
     user_id: UUID
-    filename: str
+    file_name: str
     content_hash: str
     created_at: datetime.datetime
     s3_key: str
