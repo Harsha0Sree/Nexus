@@ -6,8 +6,8 @@ class S3Storage(FileStorage):
         self.client = client
         self.bucket = bucket_name
 
-    async def upload(self, content, file_name):
-        self.client.put_object(Bucket=self.bucket, Key=file_name, Body=content)
+    async def upload(self, content, key):
+        self.client.put_object(Bucket=self.bucket, Key=key, Body=content)
         return
 
     async def download(self, file_name):

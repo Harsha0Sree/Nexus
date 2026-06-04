@@ -17,9 +17,8 @@ class DocumentService:
         self.repository = repository
 
     async def create_document(self, file_name: str, content: bytes, user_id: UUID):
-        content_hash = hashlib.sha512(content).hexdigest()
-        key = f"users/{uuid.uuid4()}{Path(file_name).suffix}"
-
+        content_hash = hashlib.sha256(content).hexdigest()
+        key = f"users/{user_id}/{uuid.uuid4()}{Path(file_name).suffix}"
         await self.storage.upload(content, key)
         document = Document(
             id=uuid.uuid4(),

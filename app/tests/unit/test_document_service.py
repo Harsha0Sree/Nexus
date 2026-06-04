@@ -39,7 +39,7 @@ def setup_document():
 async def test_create_document(setup_document):
     service, repo, storage = setup_document
     document = await service.create_document(
-        user_id="123", file_name="sample.pdf", content=b"faoufba"
+        user_id=uuid.uuid4(), file_name="sample.pdf", content=b"faoufba"
     )
     assert document.file_name == "sample.pdf"
     assert len(storage.files) == 1
