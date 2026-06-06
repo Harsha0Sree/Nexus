@@ -1,16 +1,14 @@
-import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
+from uuid import UUID
 
 import jwt
+from jwt import ExpiredSignatureError, InvalidTokenError
 from pwdlib import PasswordHash
 
 from app.bizlogic.entities import TokenPair, User, UserRepository
+from app.bizlogic.exceptions import UserAlreadyExists
 from app.config.config import get_settings
-
-
-class UserAlreadyExists(Exception):
-    pass
 
 
 class AuthService:
@@ -41,18 +39,18 @@ class AuthService:
             return None
         verify = PasswordHash().verify(user.password_hash, password)
         access_payload = {
-            "user": str(user.id),
+            "sub": str(user.id),
             "exp": datetime.now(UTC) + timedelta(minutes=15),
             "type": "access",
         }
         refresh_payload = {
-            "user": str(user.id),
+            "sub": str(user.id),
             "exp": datetime.now(UTC) + timedelta(days=30),
             "type": "refresh",
         }
         if verify:
             access_token = jwt.encode(
-                access_payload, secrets.token_hex(32), algorithm="HS256"
+                access_payload, self.settings.jwt_secret, algorithm="HS256"
             )
             refresh_token = jwt.encode(
                 refresh_payload,
@@ -61,3 +59,23 @@ class AuthService:
             )
             return TokenPair(access_token=access_token, refresh_token=refresh_token)
         return verify
+
+    def verify_access_token(self, access_token: str):
+        try:
+            payload = jwt.decode(
+                access_token, key=self.settings.jwt_secret, algorithms=["HS256"]
+            )
+        except ExpiredSignatureError:
+            raise ExpiredSignatureError("signature expired")
+        except InvalidTokenError:
+            raise InvalidTokenError("invalid signature or credentials")
+        if payload.get("type") != "access":
+            raise InvalidTokenError("Expected access token")
+        result = UUID(payload["user"])
+        if not result:
+            raise InvalidTokenError("payload doesnt have user claim")
+        try:
+            return result
+        except ValueError:
+            raise InvalidTokenError("invalid user_id")
+
