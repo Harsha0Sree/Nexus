@@ -18,3 +18,9 @@ class Document:
     content_hash: str
     created_at: datetime.datetime
     s3_key: str
+
+
+@dataclass(slots=True)
+class TokenPair:
+    access_token: str
+    refresh_token: str
