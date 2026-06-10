@@ -35,9 +35,10 @@ class AuthService:
 
     async def login(self, email: str, password: str):
         user = await self.repository.get_user_by_email(email)
+        verify = PasswordHash().verify(user.password_hash, password)
+
         if not user:
             return None
-        verify = PasswordHash().verify(user.password_hash, password)
         access_payload = {
             "sub": str(user.id),
             "exp": datetime.now(UTC) + timedelta(minutes=15),
@@ -58,7 +59,7 @@ class AuthService:
                 algorithm="HS256",
             )
             return TokenPair(access_token=access_token, refresh_token=refresh_token)
-        return verify
+        return None
 
     def verify_access_token(self, access_token: str):
         try:
@@ -71,11 +72,8 @@ class AuthService:
             raise InvalidTokenError("invalid signature or credentials")
         if payload.get("type") != "access":
             raise InvalidTokenError("Expected access token")
-        result = UUID(payload["user"])
-        if not result:
-            raise InvalidTokenError("payload doesnt have user claim")
         try:
-            return result
-        except ValueError:
-            raise InvalidTokenError("invalid user_id")
-
+            user_id = UUID(payload.get("sub"))
+        except (ValueError, KeyError):
+            raise InvalidTokenError("invalid credentials")
+        return user_id

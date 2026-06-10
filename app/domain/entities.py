@@ -1,6 +1,14 @@
 import datetime
 from dataclasses import dataclass
+from enum import Enum
 from uuid import UUID
+
+
+class JobStatus(Enum):
+    PENDING = "pending"
+    RUNNING = "running"
+    QUEUED = "queued"
+    COMPLETED = "completed"
 
 
 @dataclass(slots=True)
@@ -24,3 +32,11 @@ class Document:
 class TokenPair:
     access_token: str
     refresh_token: str
+
+
+@dataclass(slots=True)
+class Job:
+    id: UUID
+    document_id: UUID
+    status: JobStatus
+    attempts: int

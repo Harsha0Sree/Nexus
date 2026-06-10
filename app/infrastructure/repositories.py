@@ -1,7 +1,7 @@
 from uuid import UUID
 
-from app.bizlogic.entities import Document, User
-from app.bizlogic.ports import DocumentRepository, UserRepository
+from app.domain.entities import Document, User
+from app.domain.ports import DocumentRepository, JobRepository, UserRepository
 
 
 class PostgresUserRepository(UserRepository):
@@ -51,8 +51,12 @@ class PostgresDocumentRepository(DocumentRepository):
 
     async def create(self, document: Document):
         async with self.pool.acquire() as conn:
-            row = await conn.execute(
-                """INSERT INTO documents(id,user_id,file_name,content_hash,s3_key,created_at) VALUES ($1,$2,$3,$4,$5,$6)""",
+            row = await conn.fetchrow(
+                """INSERT INTO documents(id,user_id,file_name,content_hash,s3_key,created_at)
+                VALUES ($1,$2,$3,$4,$5,$6)
+                ON CONFLICT (content_hash)
+                DO NOTHING
+                RETURNING *""",
                 document.id,
                 document.user_id,
                 document.file_name,
@@ -60,4 +64,49 @@ class PostgresDocumentRepository(DocumentRepository):
                 document.s3_key,
                 document.created_at,
             )
-            return row
+            if row is None:
+                return None
+            return Document(
+                file_name=row["file_name"],
+                user_id=row["user_id"],
+                id=row["id"],
+                content_hash=row["content_hash"],
+                created_at=row["created_at"],
+                s3_key=row["s3_key"],
+            )
+
+    async def get_file_by_hash(self, content_hash):
+        async with self.pool.acquire as conn:
+            row = await conn.fetchrow(
+                """SELECT * FROM documents WHERE content_hash = ($1) """, content_hash
+            )
+            if row:
+                return Document(
+                    file_name=row["filename"],
+                    user_id=row["user_id"],
+                    id=row["id"],
+                    content_hash=row["content_hash"],
+                    created_at=row["created_at"],
+                    s3_key=row["s3_key"],
+                )
+            return None
+
+        return await super().get_file_by_hash(content_hash)
+
+
+class PgJobRepository(JobRepository):
+    async def claim_next_job(self):
+        async with self.pool.acquire as conn:
+            row = await conn.fetchrow("""BEGIN;
+                                      SELECT id FROM jobs
+                                      WHERE status ='pending'
+                                      ORDER BY created_at
+                                      LIMIT 1
+                                      FOR UPDATE SKIP LOCKED;""")
+            await conn.execute(
+                """UPDATE jobs
+                SET status = 'running'
+                WHERE id = ?;
+                COMMIT;""",
+                row,
+            )
