@@ -6,7 +6,8 @@ from uuid import UUID, uuid4
 from pydantic import BaseModel
 from fastapi import Depends, FastAPI, File, UploadFile, Request, HTTPException, status
 from fastapi.security import HTTPBearer
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import PlainTextResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.application.auth_service import AuthService
 from app.application.document_service import DocumentService
@@ -41,6 +42,14 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+
+# Mount static files directory
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+
+@app.get("/")
+async def serve_index():
+    return FileResponse("static/index.html")
 
 
 @app.middleware("http")
@@ -181,6 +190,36 @@ async def get_document(
             "summary": row.get("summary"),
             "risk_analysis": row.get("risk_analysis")
         }
+
+
+@app.get("/documents/{document_id}/runs")
+async def get_document_runs(
+    document_id: UUID,
+    current_user: User = Depends(get_user),
+    request: Request = None
+):
+    pool = request.app.state.pool
+    async with pool.acquire() as conn:
+        doc_exists = await conn.fetchval(
+            "SELECT 1 FROM documents WHERE id = $1 AND user_id = $2",
+            document_id,
+            current_user.id
+        )
+        if not doc_exists:
+            raise HTTPException(status_code=404, detail="Document not found or unauthorized")
+
+    from app.infrastructure.repositories import PgAgentRunRepository
+    run_repo = PgAgentRunRepository(pool)
+    runs = await run_repo.get_runs_by_document_id(document_id)
+    return [
+        {
+            "agent_name": run.agent_name,
+            "status": run.status.value,
+            "retries": run.retries,
+            "completed_at": run.completed_at.isoformat() if run.completed_at else None
+        }
+        for run in runs
+    ]
 
 
 @app.post("/documents/{document_id}/ask")
