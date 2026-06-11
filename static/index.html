@@ -3,170 +3,141 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nexus // AI Multi-Agent Document Processor</title>
-    <!-- Google Fonts -->
+    <title>NEXUS // Agent Telemetry & Document Retrieval Console</title>
+    <!-- Google Fonts: Syne (headings) & IBM Plex Mono (text/terminal) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=IBM+Plex+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- Main Style -->
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
     <div id="app">
-        <!-- AUTH SECTION -->
-        <section id="auth-section" class="active">
-            <div class="auth-card">
-                <div class="auth-brand">
-                    <span class="logo-icon">▲</span>
-                    <h1>NEXUS</h1>
-                    <p>AI Multi-Agent Ingestion & Analysis Engine</p>
-                </div>
-                
-                <div class="auth-tabs">
-                    <button class="auth-tab-btn active" id="tab-login-btn">Sign In</button>
-                    <button class="auth-tab-btn" id="tab-register-btn">Create Account</button>
-                </div>
-
-                <form id="auth-form" class="auth-form">
-                    <div class="input-group">
-                        <label for="auth-email">Email Address</label>
-                        <input type="email" id="auth-email" required placeholder="name@company.com">
-                    </div>
-                    <div class="input-group">
-                        <label for="auth-password">Password</label>
-                        <input type="password" id="auth-password" required placeholder="••••••••">
-                    </div>
-                    <button type="submit" id="auth-submit-btn" class="btn btn-primary">Sign In</button>
-                </form>
-                <div id="auth-message" class="auth-message"></div>
-            </div>
-        </section>
-
-        <!-- DASHBOARD SECTION -->
-        <section id="dashboard-section">
-            <!-- HEADER -->
+        <!-- DASHBOARD CONTAINER (LOADS IMMEDIATELY - AUTH REMOVED) -->
+        <section id="dashboard-section" class="active">
+            <!-- COCKPIT CONTROL HEADER -->
             <header class="app-header">
                 <div class="header-logo">
-                    <span class="logo-icon">▲</span>
-                    <h2>NEXUS</h2>
-                    <span class="badge badge-indigo">Multi-Agent Engine</span>
+                    <span class="logo-icon">▰</span>
+                    <h2>NEXUS // SYS_DECK</h2>
+                    <span class="badge badge-amber">ORCHESTRATOR ONLINE</span>
                 </div>
                 
                 <div class="header-metrics">
                     <div class="metric-pill">
-                        <span class="dot dot-blue"></span>
-                        <span class="metric-label">Files:</span>
+                        <span class="dot dot-amber"></span>
+                        <span class="metric-label">VOLUMES:</span>
                         <span id="metric-uploaded" class="metric-val">0</span>
                     </div>
                     <div class="metric-pill">
                         <span class="dot dot-green"></span>
-                        <span class="metric-label">Processed:</span>
+                        <span class="metric-label">PARSED:</span>
                         <span id="metric-processed" class="metric-val">0</span>
                     </div>
                     <div class="metric-pill">
                         <span class="dot dot-red"></span>
-                        <span class="metric-label">Errors:</span>
+                        <span class="metric-label">ABORTED:</span>
                         <span id="metric-failed" class="metric-val">0</span>
                     </div>
                 </div>
 
-                <div class="header-user">
-                    <span id="user-email-display" class="user-email">user@nexus.ai</span>
-                    <button id="logout-btn" class="btn btn-outline btn-sm">Disconnect</button>
+                <div class="header-system-info">
+                    <span class="sys-time">SYS_TIME: <span id="clock-display">00:00:00</span></span>
+                    <span class="user-identity">OPR_ID: system_operator</span>
                 </div>
             </header>
 
-            <!-- WORKSPACE -->
+            <!-- MAIN INDUSTRIAL WORKSPACE -->
             <main class="app-workspace">
-                <!-- LEFT SIDEBAR: DOCUMENTS -->
+                <!-- TELEMETRY SIDEBAR: INGESTION & ARCHIVE -->
                 <aside class="sidebar">
-                    <!-- UPLOAD CONTAINER -->
+                    <!-- INGESTION CONSOLE -->
                     <div class="upload-container">
-                        <h3>Ingest New Document</h3>
+                        <h3>[CONSOLE_01] // INGEST_QUEUE</h3>
                         <div id="drop-zone" class="drop-zone">
-                            <span class="upload-icon">✦</span>
-                            <p>Drag & drop document here</p>
-                            <span>Supports PDF, TXT (Max 10MB)</span>
+                            <span class="upload-icon">⎋</span>
+                            <p>DRAG & DROP TO INGEST</p>
+                            <span>SUPPORTS PDF, TXT (MAX 10MB)</span>
                             <input type="file" id="file-input" class="file-input" accept=".pdf,.txt">
                         </div>
                         <div id="upload-status" class="upload-status"></div>
                     </div>
 
-                    <!-- DOCUMENTS LIST -->
+                    <!-- ARCHIVE LIBRARY LIST -->
                     <div class="doc-list-container">
                         <div class="doc-list-header">
-                            <h3>Document Library</h3>
-                            <button id="refresh-docs-btn" class="btn-refresh" title="Refresh list">⟳</button>
+                            <h3>[ARCHIVE_02] // DOCUMENTS_FEED</h3>
+                            <button id="refresh-docs-btn" class="btn-refresh" title="SYNC FEED">⟲</button>
                         </div>
                         <div id="doc-list" class="doc-list">
                             <!-- Populated dynamically -->
-                            <div class="doc-list-empty">No documents uploaded yet.</div>
+                            <div class="doc-list-empty">NO VOLUMES DETECTED IN STORAGE.</div>
                         </div>
                     </div>
                 </aside>
 
-                <!-- RIGHT PANE: ANALYSIS WORKSPACE -->
+                <!-- RUNS TELEMETRY & RESULTS WORKSPACE -->
                 <article class="analysis-pane">
-                    <!-- NO SELECTION STATE -->
-                    <div id="no-selection-state" class="pane-stateactive">
-                        <div class="state-icon">❖</div>
-                        <h3>No Document Selected</h3>
-                        <p>Upload a document or choose one from the library to view agent pipeline status and extraction results.</p>
+                    <!-- NO ACTIVE DOCUMENT PANEL -->
+                    <div id="no-selection-state">
+                        <div class="state-icon">⏣</div>
+                        <h3>SYSTEM STANDBY</h3>
+                        <p>Awaiting payload. Select a document volume from the ARCHIVE_FEED or feed a new document into INGEST_QUEUE to begin agent sequence execution.</p>
                     </div>
 
-                    <!-- SELECTED DOCUMENT STATE -->
+                    <!-- ACTIVE SYSTEM TELEMETRY -->
                     <div id="active-document-state">
                         <header class="doc-view-header">
                             <div>
                                 <h1 id="selected-doc-name">agreement.pdf</h1>
-                                <p class="doc-meta">ID: <span id="selected-doc-id">...</span> • Created: <span id="selected-doc-date">...</span></p>
+                                <p class="doc-meta">UUID: <span id="selected-doc-id">...</span> • INGEST_TIME: <span id="selected-doc-date">...</span></p>
                             </div>
                             <div class="status-badge-container">
                                 <span id="selected-doc-status-badge" class="badge">PENDING</span>
                             </div>
                         </header>
 
-                        <!-- COORDINATOR AGENT DIAG TIMELINE VISUALIZER -->
+                        <!-- DAG PIPELINE TIMELINE -->
                         <section class="dag-visualizer-card">
-                            <h3>Coordinator Agent Workflow Timeline</h3>
+                            <h3>[TELEMETRY_03] // COORD_AGENT_DAG_RUNS</h3>
                             <div class="dag-flow">
                                 <!-- Ingestion Node -->
                                 <div class="dag-node" id="node-ingestion">
-                                    <div class="node-icon">⬇</div>
+                                    <div class="node-icon">◆</div>
                                     <div class="node-info">
-                                        <h4>Ingestion Agent</h4>
-                                        <span class="node-status">Pending</span>
+                                        <h4>INGESTION_AGT</h4>
+                                        <span class="node-status">PENDING</span>
                                     </div>
                                 </div>
                                 <div class="dag-connector"></div>
 
                                 <!-- Classification Node -->
                                 <div class="dag-node" id="node-classification">
-                                    <div class="node-icon">⚙</div>
+                                    <div class="node-icon">◆</div>
                                     <div class="node-info">
-                                        <h4>Classification Agent</h4>
-                                        <span class="node-status">Pending</span>
+                                        <h4>CLASSIFY_AGT</h4>
+                                        <span class="node-status">PENDING</span>
                                     </div>
                                 </div>
                                 <div class="dag-connector"></div>
 
-                                <!-- Parallel Split Box -->
+                                <!-- Parallel Execution Group -->
                                 <div class="dag-parallel-group">
                                     <!-- Metadata Node -->
                                     <div class="dag-node" id="node-metadata">
-                                        <div class="node-icon">🏷</div>
+                                        <div class="node-icon">◆</div>
                                         <div class="node-info">
-                                            <h4>Metadata Agent</h4>
-                                            <span class="node-status">Pending</span>
+                                            <h4>METADATA_AGT</h4>
+                                            <span class="node-status">PENDING</span>
                                         </div>
                                     </div>
                                     
                                     <!-- Summarization Node -->
                                     <div class="dag-node" id="node-summarization">
-                                        <div class="node-icon">📝</div>
+                                        <div class="node-icon">◆</div>
                                         <div class="node-info">
-                                            <h4>Summarization Agent</h4>
-                                            <span class="node-status">Pending</span>
+                                            <h4>SUMMARY_AGT</h4>
+                                            <span class="node-status">PENDING</span>
                                         </div>
                                     </div>
                                 </div>
@@ -174,41 +145,40 @@
 
                                 <!-- Embedding Node -->
                                 <div class="dag-node" id="node-embedding">
-                                    <div class="node-icon">⚿</div>
+                                    <div class="node-icon">◆</div>
                                     <div class="node-info">
-                                        <h4>Embedding Agent</h4>
-                                        <span class="node-status">Pending</span>
+                                        <h4>EMBEDDING_AGT</h4>
+                                        <span class="node-status">PENDING</span>
                                     </div>
                                 </div>
                                 <div class="dag-connector risk-connector"></div>
 
                                 <!-- Risk Analysis Node (Conditional) -->
                                 <div class="dag-node risk-node" id="node-risk_analysis">
-                                    <div class="node-icon">⚠</div>
+                                    <div class="node-icon">▲</div>
                                     <div class="node-info">
-                                        <h4>Risk Analysis Agent</h4>
-                                        <span class="node-status">Skipped</span>
+                                        <h4>RISK_ANAL_AGT</h4>
+                                        <span class="node-status">SKIPPED</span>
                                     </div>
                                 </div>
                             </div>
                         </section>
 
-                        <!-- MAIN WORKSPACE VIEWPORT: RESULTS & CHAT -->
+                        <!-- DATA VISUALIZER VIEWPORTS -->
                         <div class="workspace-viewport">
-                            <!-- RESULTS TABS -->
+                            <!-- Telemetry Details Tab Pane -->
                             <div class="results-viewer">
                                 <nav class="results-tabs">
-                                    <button class="results-tab-btn active" data-tab="tab-summary">Executive Summary</button>
-                                    <button class="results-tab-btn" data-tab="tab-metadata">Extracted Metadata</button>
-                                    <button class="results-tab-btn" id="risk-tab-btn" data-tab="tab-risk">Compliance & Risk</button>
+                                    <button class="results-tab-btn active" data-tab="tab-summary">// SUM_SUMMARY</button>
+                                    <button class="results-tab-btn" data-tab="tab-metadata">// META_DAT</button>
+                                    <button class="results-tab-btn" id="risk-tab-btn" data-tab="tab-risk">// RISK_AUDIT</button>
                                 </nav>
 
                                 <div class="tab-viewport">
                                     <!-- Summary Tab -->
                                     <div class="tab-pane active" id="tab-summary">
                                         <div class="summary-content markdown-body" id="summary-view">
-                                            <!-- Summary text -->
-                                            <p class="placeholder-text">Summarization Agent results will appear here once execution completes.</p>
+                                            <p class="placeholder-text">Waiting for agent compilation...</p>
                                         </div>
                                     </div>
 
@@ -216,31 +186,31 @@
                                     <div class="tab-pane" id="tab-metadata">
                                         <div class="metadata-grid">
                                             <div class="meta-card">
-                                                <h5>Classification</h5>
-                                                <div id="meta-class" class="meta-val badge badge-purple">N/A</div>
+                                                <h5>FILE_CLASSIFICATION</h5>
+                                                <div id="meta-class" class="meta-val badge badge-amber">N/A</div>
                                             </div>
                                             <div class="meta-card">
-                                                <h5>Authors</h5>
+                                                <h5>EXTRACTED_AUTHORS</h5>
                                                 <div id="meta-authors" class="tag-cloud">
-                                                    <span class="no-tags">No authors detected</span>
+                                                    <span class="no-tags">NO_RECORDS</span>
                                                 </div>
                                             </div>
                                             <div class="meta-card">
-                                                <h5>Companies & Organizations</h5>
+                                                <h5>COMPANIES_&_ORGS</h5>
                                                 <div id="meta-companies" class="tag-cloud">
-                                                    <span class="no-tags">No companies detected</span>
+                                                    <span class="no-tags">NO_RECORDS</span>
                                                 </div>
                                             </div>
                                             <div class="meta-card">
-                                                <h5>Key Dates</h5>
+                                                <h5>DETECTOR_DATES</h5>
                                                 <div id="meta-dates" class="tag-cloud">
-                                                    <span class="no-tags">No dates detected</span>
+                                                    <span class="no-tags">NO_RECORDS</span>
                                                 </div>
                                             </div>
                                             <div class="meta-card span-all">
-                                                <h5>Extracted Keywords</h5>
+                                                <h5>EXTRACTED_KEYWORDS</h5>
                                                 <div id="meta-keywords" class="tag-cloud">
-                                                    <span class="no-tags">No keywords detected</span>
+                                                    <span class="no-tags">NO_RECORDS</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -249,27 +219,27 @@
                                     <!-- Risk Audit Tab -->
                                     <div class="tab-pane" id="tab-risk">
                                         <div id="risk-view" class="risk-content markdown-body">
-                                            <p class="placeholder-text">Risk Analysis Agent results will appear here for supported documents (e.g. contracts).</p>
+                                            <p class="placeholder-text">Awaiting risk analysis audit compilation...</p>
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
-                            <!-- RAG CHAT TERMINAL -->
+                            <!-- Q&A CONSOLE PANEL (RAG AGENT INTERACTIVE RUNNER) -->
                             <div class="chat-terminal">
                                 <div class="chat-header">
-                                    <h4>Ask the Document (RAG Q&A Agent)</h4>
+                                    <h4>[QUERY_04] // RAG_AGENT_INTERACTION</h4>
                                 </div>
                                 <div class="chat-messages" id="chat-messages">
                                     <div class="message assistant-message">
                                         <div class="message-bubble">
-                                            Hi! I have indexed this document chunks. You can ask me questions about it, and I will search the vector records to retrieve the answers.
+                                            SYS // RAG vector storage connection verified. Awaiting query commands...
                                         </div>
                                     </div>
                                 </div>
                                 <form id="chat-form" class="chat-input-area">
-                                    <input type="text" id="chat-input" required placeholder="What are the termination conditions?..." autocomplete="off">
-                                    <button type="submit" id="chat-send-btn" class="btn btn-indigo">Ask ✦</button>
+                                    <input type="text" id="chat-input" required placeholder="INPUT_QUERY_HERE (e.g. key covenants?)..." autocomplete="off">
+                                    <button type="submit" id="chat-send-btn" class="btn btn-indigo">QUERY ✦</button>
                                 </form>
                             </div>
                         </div>
@@ -279,7 +249,7 @@
         </section>
     </div>
 
-    <!-- Main Logic Script -->
+    <!-- Main Controller Logic -->
     <script src="/static/app.js"></script>
 </body>
 </html>

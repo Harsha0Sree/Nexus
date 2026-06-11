@@ -1,31 +1,19 @@
-// NEXUS Front-End Application Logic
+// NEXUS SYS_DECK - Cockpit Controller Script
 
 document.addEventListener("DOMContentLoaded", () => {
     // --- State Variables ---
-    let token = localStorage.getItem("nexus_token");
-    let userEmail = localStorage.getItem("nexus_email");
     let activeDocId = null;
     let pollInterval = null;
     let activeTab = "tab-summary";
 
     // --- DOM Elements ---
-    const authSection = document.getElementById("auth-section");
     const dashboardSection = document.getElementById("dashboard-section");
-    const authForm = document.getElementById("auth-form");
-    const authEmailInput = document.getElementById("auth-email");
-    const authPasswordInput = document.getElementById("auth-password");
-    const authSubmitBtn = document.getElementById("auth-submit-btn");
-    const authMessage = document.getElementById("auth-message");
-    const tabLoginBtn = document.getElementById("tab-login-btn");
-    const tabRegisterBtn = document.getElementById("tab-register-btn");
-
-    const userEmailDisplay = document.getElementById("user-email-display");
-    const logoutBtn = document.getElementById("logout-btn");
     const refreshDocsBtn = document.getElementById("refresh-docs-btn");
     const docList = document.getElementById("doc-list");
     const dropZone = document.getElementById("drop-zone");
     const fileInput = document.getElementById("file-input");
     const uploadStatus = document.getElementById("upload-status");
+    const clockDisplay = document.getElementById("clock-display");
 
     // Metrics Display
     const metricUploaded = document.getElementById("metric-uploaded");
@@ -56,124 +44,43 @@ document.addEventListener("DOMContentLoaded", () => {
     const chatInput = document.getElementById("chat-input");
     const chatMessages = document.getElementById("chat-messages");
 
-    // --- Authentication Actions ---
-    let isRegisterMode = false;
-
-    tabLoginBtn.addEventListener("click", () => {
-        isRegisterMode = false;
-        tabLoginBtn.classList.add("active");
-        tabRegisterBtn.classList.remove("active");
-        authSubmitBtn.innerText = "Sign In";
-        authMessage.innerText = "";
-    });
-
-    tabRegisterBtn.addEventListener("click", () => {
-        isRegisterMode = true;
-        tabRegisterBtn.classList.add("active");
-        tabLoginBtn.classList.remove("active");
-        authSubmitBtn.innerText = "Create Account";
-        authMessage.innerText = "";
-    });
-
-    authForm.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        authMessage.innerText = "";
-        
-        const email = authEmailInput.value;
-        const password = authPasswordInput.value;
-        const url = isRegisterMode ? "/register" : "/login";
-
-        try {
-            authSubmitBtn.disabled = true;
-            authSubmitBtn.innerText = isRegisterMode ? "Registering..." : "Signing In...";
-            
-            const response = await fetch(url, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email, password })
-            });
-
-            const data = await response.json();
-            if (!response.ok) {
-                throw new Error(data.detail || "Authentication failed");
-            }
-
-            if (isRegisterMode) {
-                authMessage.className = "auth-message success";
-                authMessage.innerText = "Registration complete! You can sign in now.";
-                // Switch back to login mode automatically
-                setTimeout(() => tabLoginBtn.click(), 1500);
-            } else {
-                // Login Mode
-                token = data.access_token;
-                userEmail = email;
-                localStorage.setItem("nexus_token", token);
-                localStorage.setItem("nexus_email", userEmail);
-                showDashboard();
-            }
-        } catch (err) {
-            authMessage.className = "auth-message error";
-            authMessage.innerText = err.message;
-        } finally {
-            authSubmitBtn.disabled = false;
-            authSubmitBtn.innerText = isRegisterMode ? "Create Account" : "Sign In";
+    // --- Run Immersive System Clock ---
+    function updateClock() {
+        const now = new Date();
+        const hrs = String(now.getHours()).padStart(2, '0');
+        const mins = String(now.getMinutes()).padStart(2, '0');
+        const secs = String(now.getSeconds()).padStart(2, '0');
+        if (clockDisplay) {
+            clockDisplay.innerText = `${hrs}:${mins}:${secs}`;
         }
-    });
-
-    logoutBtn.addEventListener("click", () => {
-        localStorage.removeItem("nexus_token");
-        localStorage.removeItem("nexus_email");
-        token = null;
-        userEmail = null;
-        activeDocId = null;
-        clearInterval(pollInterval);
-        showAuth();
-    });
-
-    // --- Switch Section States ---
-    function showAuth() {
-        authSection.classList.add("active");
-        dashboardSection.classList.remove("active");
     }
+    updateClock();
+    setInterval(updateClock, 1000);
 
-    function showDashboard() {
-        authSection.classList.remove("active");
-        dashboardSection.classList.add("active");
-        userEmailDisplay.innerText = userEmail;
-        fetchDocuments();
-        // Start polling documents list
-        clearInterval(pollInterval);
-        pollInterval = setInterval(fetchDocuments, 4000);
-    }
-
-    // --- Documents Dashboard Ingestion & Management ---
-    async defFetch(url, options = {}) {
-        if (!options.headers) options.headers = {};
-        options.headers["Authorization"] = `Bearer ${token}`;
-        
+    // --- Core API Helpers (Auth-Free) ---
+    async function apiFetch(url, options = {}) {
         const response = await fetch(url, options);
-        if (response.status === 401) {
-            // Force logout on token expiry
-            logoutBtn.click();
-            throw new Error("Session expired. Please log in again.");
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            throw new Error(data.detail || `API Error: ${response.status}`);
         }
         return response;
     }
 
     async function fetchDocuments() {
         try {
-            const response = await defFetch("/documents");
+            const response = await apiFetch("/documents");
             const docs = await response.json();
             renderDocumentList(docs);
             updateMetrics(docs);
         } catch (err) {
-            console.error("Error retrieving documents:", err);
+            console.error("Error retrieving documents archive:", err);
         }
     }
 
     function renderDocumentList(docs) {
         if (docs.length === 0) {
-            docList.innerHTML = `<div class="doc-list-empty">No documents uploaded yet.</div>`;
+            docList.innerHTML = `<div class="doc-list-empty">NO VOLUMES DETECTED IN STORAGE.</div>`;
             return;
         }
 
@@ -214,7 +121,7 @@ document.addEventListener("DOMContentLoaded", () => {
         metricFailed.innerText = failed;
     }
 
-    // --- Document Viewer Module ---
+    // --- Document Selector ---
     async function selectDocument(docId, cachedDocsList) {
         activeDocId = docId;
         
@@ -227,7 +134,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         });
 
-        // Hide Empty State
+        // Hide Standby Screen
         noSelectionState.classList.add("hidden");
         activeDocumentState.style.display = "flex";
 
@@ -241,20 +148,20 @@ document.addEventListener("DOMContentLoaded", () => {
         if (activeDocId !== docId) return;
 
         try {
-            const response = await defFetch(`/documents/${docId}`);
+            const response = await apiFetch(`/documents/${docId}`);
             const doc = await response.json();
             
-            // Set basic details
+            // Set details
             selectedDocName.innerText = doc.file_name;
             selectedDocId.innerText = doc.id;
             selectedDocDate.innerText = formatDate(doc.created_at);
             
-            // Status badge class
+            // Status badge
             selectedDocStatusBadge.className = `badge status-${doc.status.toLowerCase()}`;
             selectedDocStatusBadge.innerText = doc.status;
 
             // Fetch and Paint DAG Node Visuals
-            const runsResponse = await defFetch(`/documents/${docId}/runs`);
+            const runsResponse = await apiFetch(`/documents/${docId}/runs`);
             const runs = await runsResponse.json();
             paintDagTimeline(doc.status, runs, doc.classification);
 
@@ -262,7 +169,7 @@ document.addEventListener("DOMContentLoaded", () => {
             populateAgentResults(doc);
 
         } catch (err) {
-            console.error("Error retrieving document details:", err);
+            console.error("Error retrieving document telemetry details:", err);
         }
     }
 
@@ -288,34 +195,34 @@ document.addEventListener("DOMContentLoaded", () => {
 
             if (agent === "risk_analysis" && classification && !isRiskEligible) {
                 node.classList.add("node-skipped");
-                statusLabel.innerText = "Skipped";
+                statusLabel.innerText = "SKIPPED";
                 return;
             }
 
             if (run) {
                 if (run.status === "running") {
                     node.classList.add("node-running");
-                    statusLabel.innerText = "Running...";
+                    statusLabel.innerText = "RUNNING...";
                 } else if (run.status === "completed") {
                     node.classList.add("node-completed");
-                    statusLabel.innerText = "Completed";
+                    statusLabel.innerText = "COMPLETED";
                 } else if (run.status === "failed") {
                     node.classList.add("node-failed");
-                    statusLabel.innerText = `Failed (Attempts: ${run.retries + 1})`;
+                    statusLabel.innerText = "FAILED";
                 }
             } else {
                 // If the overall job is processed, but this run record is missing, it's either skipped or pending
                 if (overallStatus.toLowerCase() === "processed" && agent !== "risk_analysis") {
                     node.classList.add("node-completed");
-                    statusLabel.innerText = "Completed";
+                    statusLabel.innerText = "COMPLETED";
                 } else if (overallStatus.toLowerCase() === "failed") {
                     node.classList.add("node-skipped");
-                    statusLabel.innerText = "Aborted";
+                    statusLabel.innerText = "ABORTED";
                 } else if (overallStatus.toLowerCase() === "processing") {
                     node.classList.add("node-running");
-                    statusLabel.innerText = "Waiting...";
+                    statusLabel.innerText = "WAITING...";
                 } else {
-                    statusLabel.innerText = "Pending";
+                    statusLabel.innerText = "PENDING";
                 }
             }
         });
@@ -324,8 +231,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const riskConnector = document.querySelector(".risk-connector");
         const riskNode = document.querySelector(".risk-node");
         if (classification && !isRiskEligible) {
-            riskConnector.style.opacity = "0.3";
-            riskNode.style.opacity = "0.3";
+            riskConnector.style.opacity = "0.2";
+            riskNode.style.opacity = "0.2";
         } else {
             riskConnector.style.opacity = "1.0";
             riskNode.style.opacity = "1.0";
@@ -338,7 +245,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (doc.summary) {
             summaryView.innerHTML = parseMarkdown(doc.summary);
         } else {
-            summaryView.innerHTML = `<p class="placeholder-text">Summarization Agent is working. Results will appear when complete.</p>`;
+            summaryView.innerHTML = `<p class="placeholder-text">SUMMARY_AGT is compiling summaries. Readout will print when complete.</p>`;
         }
 
         // Render Metadata Tab
@@ -347,15 +254,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (doc.metadata) {
             const meta = typeof doc.metadata === "string" ? JSON.parse(doc.metadata) : doc.metadata;
-            renderTags(metaAuthors, meta.authors, "No authors detected");
-            renderTags(metaCompanies, meta.companies, "No companies detected");
-            renderTags(metaDates, meta.dates, "No dates detected");
-            renderTags(metaKeywords, meta.keywords, "No keywords detected");
+            renderTags(metaAuthors, meta.authors, "NO_RECORDS");
+            renderTags(metaCompanies, meta.companies, "NO_RECORDS");
+            renderTags(metaDates, meta.dates, "NO_RECORDS");
+            renderTags(metaKeywords, meta.keywords, "NO_RECORDS");
         } else {
-            renderTags(metaAuthors, [], "Pending metadata agent execution");
-            renderTags(metaCompanies, [], "Pending metadata agent execution");
-            renderTags(metaDates, [], "Pending metadata agent execution");
-            renderTags(metaKeywords, [], "Pending metadata agent execution");
+            renderTags(metaAuthors, [], "PENDING_METADATA_EXEC");
+            renderTags(metaCompanies, [], "PENDING_METADATA_EXEC");
+            renderTags(metaDates, [], "PENDING_METADATA_EXEC");
+            renderTags(metaKeywords, [], "PENDING_METADATA_EXEC");
         }
 
         // Render Risk Tab
@@ -367,19 +274,17 @@ document.addEventListener("DOMContentLoaded", () => {
             if (doc.risk_analysis) {
                 riskView.innerHTML = parseMarkdown(doc.risk_analysis);
             } else {
-                riskView.innerHTML = `<p class="placeholder-text">Risk Analysis Agent is evaluating compliance. Results will appear when complete.</p>`;
+                riskView.innerHTML = `<p class="placeholder-text">RISK_ANAL_AGT is auditing compliance factors. Results will print when complete.</p>`;
             }
         } else {
-            // Hide or disable risk tab for invoices/resumes etc.
             if (doc.classification) {
                 riskTabBtn.style.display = "none";
-                // If active tab was risk, click summary instead
                 if (activeTab === "tab-risk") {
                     document.querySelector("[data-tab='tab-summary']").click();
                 }
             } else {
                 riskTabBtn.style.display = "block";
-                riskView.innerHTML = `<p class="placeholder-text">Evaluating file classification to determine risk audit eligibility...</p>`;
+                riskView.innerHTML = `<p class="placeholder-text">Inferring document classification to determine risk audit eligibility...</p>`;
             }
         }
     }
@@ -418,7 +323,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    // Drag-over styling
     dropZone.addEventListener("dragover", (e) => {
         e.preventDefault();
         dropZone.classList.add("dragover");
@@ -440,7 +344,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     async function handleFileUpload(file) {
         uploadStatus.className = "upload-status uploading";
-        uploadStatus.innerText = "Ingesting file into storage...";
+        uploadStatus.innerText = "INGESTING VOLUME INTO STORAGE ARCHIVE...";
 
         const formData = new FormData();
         formData.append("file", file);
@@ -448,24 +352,24 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             const response = await fetch("/documents", {
                 method: "POST",
-                headers: { "Authorization": `Bearer ${token}` },
                 body: formData
             });
 
-            const data = await response.json();
             if (!response.ok) {
-                throw new Error(data.detail || "Upload failed");
+                const data = await response.json().catch(() => ({}));
+                throw new Error(data.detail || "Ingestion pipeline upload failure.");
             }
 
+            const data = await response.json();
             uploadStatus.className = "upload-status success";
-            uploadStatus.innerText = "Ingestion succeeded! Job queued.";
+            uploadStatus.innerText = "INGESTION SUCCESSFUL. ANALYSIS JOB REGISTERED.";
             
             // Refresh documents list
             await fetchDocuments();
             // Automatically select new document
             selectDocument(data.document_id);
             
-            // Clear status message after 3 seconds
+            // Clear status message
             setTimeout(() => { uploadStatus.innerText = ""; }, 3000);
 
         } catch (err) {
@@ -489,10 +393,10 @@ document.addEventListener("DOMContentLoaded", () => {
         chatInput.value = "";
 
         // Show typing indicator
-        const typingBubble = appendChatMessage("assistant", "Searching vector records and answering question...", true);
+        const typingBubble = appendChatMessage("assistant", "SYS // QUERYING VECTOR INDEX RECORDS...", true);
 
         try {
-            const response = await defFetch(`/documents/${activeDocId}/ask`, {
+            const response = await fetch(`/documents/${activeDocId}/ask`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ question })
@@ -500,15 +404,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const data = await response.json();
             if (!response.ok) {
-                throw new Error(data.detail || "Query failed");
+                throw new Error(data.detail || "Query execution failed");
             }
 
-            // Remove typing bubble and print response
             typingBubble.remove();
             appendChatMessage("assistant", data.answer);
         } catch (err) {
             typingBubble.remove();
-            appendChatMessage("assistant", `Error: ${err.message}`);
+            appendChatMessage("assistant", `SYS_ERR // ${err.message}`);
         }
     });
 
@@ -527,7 +430,7 @@ document.addEventListener("DOMContentLoaded", () => {
         chatMessages.innerHTML = `
             <div class="message assistant-message">
                 <div class="message-bubble">
-                    Hi! I have indexed this document chunks. You can ask me questions about it, and I will search the vector records to retrieve the answers.
+                    SYS // RAG vector storage connection verified. Awaiting query commands...
                 </div>
             </div>
         `;
@@ -539,11 +442,9 @@ document.addEventListener("DOMContentLoaded", () => {
             const targetTab = btn.getAttribute("data-tab");
             activeTab = targetTab;
 
-            // Remove active states
             resultsTabBtns.forEach(b => b.classList.remove("active"));
             tabPanes.forEach(p => p.classList.remove("active"));
 
-            // Set active states
             btn.classList.add("active");
             document.getElementById(targetTab).classList.add("active");
         });
@@ -565,7 +466,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // Minimal markdown translator to avoid extra script weight
     function parseMarkdown(text) {
         if (!text) return "";
         let html = text
@@ -573,31 +473,20 @@ document.addEventListener("DOMContentLoaded", () => {
             .replace(/</g, "&lt;")
             .replace(/>/g, "&gt;");
 
-        // Format headers: ### Title
         html = html.replace(/^### (.*?)$/gm, "<h3>$1</h3>");
         html = html.replace(/^## (.*?)$/gm, "<h3>$1</h3>");
         html = html.replace(/^# (.*?)$/gm, "<h3>$1</h3>");
         
-        // Format bullet points: - item
         html = html.replace(/^\s*[-*+]\s+(.*?)$/gm, "<li>$1</li>");
-        
-        // Wrap consecutive list items in <ul> tags
         html = html.replace(/(<li>.*?<\/li>)+/g, "<ul>$&</ul>");
         
-        // Paragraph splits (double newlines)
         html = html.replace(/\n\n/g, "</p><p>");
-        
-        // Simple carriage return mapping
         html = html.replace(/\n/g, "<br>");
         
-        // Re-wrap paragraphs
         return `<p>${html}</p>`.replace(/<p><\/p>/g, "").replace(/<p><h3>/g, "<h3>").replace(/<\/h3><\/p>/g, "</h3>");
     }
 
-    // --- App Init Check ---
-    if (token) {
-        showDashboard();
-    } else {
-        showAuth();
-    }
+    // --- Initialize Dashboard Directly ---
+    fetchDocuments();
+    pollInterval = setInterval(fetchDocuments, 3000);
 });
