@@ -6,8 +6,9 @@ import jwt
 from jwt import ExpiredSignatureError, InvalidTokenError
 from pwdlib import PasswordHash
 
-from app.bizlogic.entities import TokenPair, User, UserRepository
-from app.bizlogic.exceptions import UserAlreadyExists
+from app.domain.entities import TokenPair, User
+from app.domain.ports import UserRepository
+from app.domain.exceptions import UserAlreadyExists
 from app.config.config import get_settings
 
 
@@ -15,6 +16,7 @@ class AuthService:
     def __init__(self, repository: UserRepository):
         self.repository = repository
         self.settings = get_settings()
+        self.hasher = PasswordHash.recommended()
 
     async def register(self, email: str, password: str) -> User:
         existing_user = await self.repository.get_user_by_email(email)
@@ -23,7 +25,7 @@ class AuthService:
         user = User(
             id=uuid.uuid4(),
             email=email,
-            password_hash=PasswordHash().recommended().hash(password),
+            password_hash=self.hasher.hash(password),
         )
         return await self.repository.create(user)
 
@@ -35,10 +37,10 @@ class AuthService:
 
     async def login(self, email: str, password: str):
         user = await self.repository.get_user_by_email(email)
-        verify = PasswordHash().verify(user.password_hash, password)
-
         if not user:
             return None
+        verify = self.hasher.verify(password, user.password_hash)
+
         access_payload = {
             "sub": str(user.id),
             "exp": datetime.now(UTC) + timedelta(minutes=15),

@@ -1,5 +1,5 @@
-from app.bizlogic.ports import FileStorage
-from app.bizlogic.exceptions import UploadSizeExceeded
+from app.domain.ports import FileStorage
+from app.domain.exceptions import UploadSizeExceeded
 max_file_size = 10 * 1024 * 1024
 
 
@@ -15,10 +15,10 @@ class S3Storage(FileStorage):
         self.client.put_object(Bucket=self.bucket, Key=key, Body=content)
         return
 
-    async def download(self, file_name):
-        response = self.client.get_object(Bucket=self.bucket, Key=file_name)
+    async def download(self, key):
+        response = self.client.get_object(Bucket=self.bucket, Key=key)
         return response["Body"].read()
 
-    async def delete(self, file_name):
-        self.client.delete_object(Bucket=self.bucket, Key=file_name)
+    async def delete(self, key):
+        self.client.delete_object(Bucket=self.bucket, Key=key)
         return

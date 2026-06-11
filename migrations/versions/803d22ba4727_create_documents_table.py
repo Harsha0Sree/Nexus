@@ -26,7 +26,7 @@ def upgrade() -> None:
                file_name TEXT NOT NULL ,
                content_hash TEXT NOT NULL UNIQUE,
                s3_key TEXT NOT NULL,
-               created_at TIMESTAMPZ NOT NULL DEFAULT CURRENT_TIMESTAMP);
+               created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP);
                CREATE INDEX idx_documents_user_id
                ON documents(user_id);
                CREATE INDEX idx_document_user_hash
