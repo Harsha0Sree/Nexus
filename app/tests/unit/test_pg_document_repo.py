@@ -4,14 +4,14 @@ from uuid import UUID, uuid4
 import pytest
 import pytest_asyncio
 
-from app.bizlogic.entities import Document
+from app.domain.entities import Document
 from app.infrastructure.postgres import create_test_pool_connection
 from app.infrastructure.repositories import PostgresDocumentRepository
 
 
 @pytest.fixture
 async def startup():
-    pool = create_test_pool_connection()
+    pool = await create_test_pool_connection()
     document = Document(
         id=uuid4(),
         user_id=UUID("123e4567-e89b-12d3-a456-426614174000"),
@@ -42,8 +42,10 @@ async def test_create(startup):
     pool, document = startup
     repo = PostgresDocumentRepository(pool)
     row = await repo.create(document)
+    assert row is not None
     get_doc = await repo.get_file_by_id(document.id)
-    assert row["content_hash"] == get_doc.content_hash
+    assert get_doc is not None
+    assert row.content_hash == get_doc.content_hash
     assert get_doc.id == document.id
 
     assert get_doc.user_id == document.user_id

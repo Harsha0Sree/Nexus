@@ -17,7 +17,7 @@ def setup():
 @pytest.mark.asyncio
 async def test_s3_storage(setup):
     storage, client = setup
-    await storage.upload(content=b"what", file_name="sample.pdf")
+    await storage.upload(content=b"what", key="sample.pdf")
     response = client.get_object(
         Bucket="test_bucket",
         Key="sample.pdf",

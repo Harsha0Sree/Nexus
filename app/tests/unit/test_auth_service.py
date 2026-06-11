@@ -3,7 +3,7 @@ import uuid
 import pytest
 
 from app.application.auth_service import AuthService, UserAlreadyExists
-from app.bizlogic.entities import User
+from app.domain.entities import User
 
 
 class FakeUserRepository:
@@ -33,15 +33,15 @@ def setup():
 @pytest.mark.asyncio
 async def test_register_creates_user(setup):
     service, user = setup
-    created_user = await service.register(user)
+    created_user = await service.register(user.email, "password123")
     assert created_user.email == user.email
 
 
 @pytest.mark.asyncio
 async def test_check_existing_user(setup):
     service, user = setup
-    await service.register(user)
+    await service.register(user.email, "password123")
     with pytest.raises(UserAlreadyExists):
-        await service.register(user)
+        await service.register(user.email, "password123")
     assert await service.get_user_by_email(user.email) is not None
     

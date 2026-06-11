@@ -1,19 +1,11 @@
 from pwdlib import PasswordHash
 
-content = b"what the fuck man!"
-
-password_hasher = PasswordHash().recommended
+password_hasher = PasswordHash.recommended()
 
 
 def test_hash():
+    password = "what the fuck man!"
+    hash_value = password_hasher.hash(password)
 
-    hash1 = password_hasher.hash(content)
-    hash2 = password_hasher.hash(content)
-
-    assert hash1 == hash2
-
-    content1 = b"what the fuck mam!"
-
-    hash3 = password_hasher.hash(content1)
-
-    assert hash1 != hash3
+    assert password_hasher.verify(password, hash_value)
+    assert not password_hasher.verify("wrong_password", hash_value)
