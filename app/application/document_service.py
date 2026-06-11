@@ -6,16 +6,19 @@ from uuid import UUID
 
 from app.domain.entities import Document
 from app.domain.exceptions import CleanUpFailed
-from app.domain.ports import (
-    DocumentRepository,
-    FileStorage,
-)
+from app.domain.ports import DocumentRepository, FileStorage, JobRepository
 
 
 class DocumentService:
-    def __init__(self, repository: DocumentRepository, storage: FileStorage):
+    def __init__(
+        self,
+        repository: DocumentRepository,
+        storage: FileStorage,
+        job_repo: JobRepository,
+    ):
         self.storage = storage
         self.repository = repository
+        self.job_repo = job_repo
 
     async def create_document(self, file_name: str, content: bytes, user_id: UUID):
         content_hash = hashlib.sha256(content).hexdigest()
@@ -33,6 +36,7 @@ class DocumentService:
                 created_at=datetime.now(UTC),
             )
             await self.repository.create(document)
+            await self.job_repo.create_job(document.id)
         except Exception:
             if uploaded:
                 try:
