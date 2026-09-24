@@ -98,7 +98,7 @@ class PostgresDocumentRepository(DocumentRepository):
             row = await conn.fetchrow(
                 """INSERT INTO documents(id, user_id, file_name, content_hash, s3_key, created_at)
                    VALUES ($1, $2, $3, $4, $5, $6)
-                   ON CONFLICT (content_hash)
+                   ON CONFLICT (user_id, content_hash)
                    DO NOTHING
                    RETURNING *""",
                 document.id,
@@ -109,7 +109,7 @@ class PostgresDocumentRepository(DocumentRepository):
                 document.created_at,
             )
             if row is None:
-                return await self.get_file_by_hash(document.content_hash)
+                return await self.get_file_by_hash(document.content_hash, document.user_id)
             return Document(
                 id=row["id"],
                 user_id=row["user_id"],
@@ -124,11 +124,18 @@ class PostgresDocumentRepository(DocumentRepository):
                 risk_analysis=row.get("risk_analysis")
             )
 
-    async def get_file_by_hash(self, content_hash: str) -> Document | None:
+    async def get_file_by_hash(self, content_hash: str, user_id: uuid.UUID | None = None) -> Document | None:
         async with self.pool.acquire() as conn:
-            row = await conn.fetchrow(
-                """SELECT * FROM documents WHERE content_hash = $1""", content_hash
-            )
+            if user_id:
+                row = await conn.fetchrow(
+                    """SELECT * FROM documents WHERE content_hash = $1 AND user_id = $2""",
+                    content_hash,
+                    user_id
+                )
+            else:
+                row = await conn.fetchrow(
+                    """SELECT * FROM documents WHERE content_hash = $1""", content_hash
+                )
             if row:
                 return Document(
                     id=row["id"],
@@ -185,6 +192,26 @@ class PgJobRepository(JobRepository):
         status = JobStatus.PENDING.value
         created_at = datetime.datetime.now(datetime.UTC)
         async with self.pool.acquire() as conn:
+            existing = await conn.fetchrow(
+                """SELECT * FROM jobs
+                   WHERE document_id = $1 AND status IN ($2, $3)
+                   ORDER BY created_at DESC
+                   LIMIT 1""",
+                document_id,
+                JobStatus.PENDING.value,
+                JobStatus.RUNNING.value
+            )
+            if existing:
+                return Job(
+                    id=existing["id"],
+                    document_id=existing["document_id"],
+                    status=JobStatus(existing["status"]),
+                    attempts=existing["attempts"],
+                    started_at=existing["started_at"],
+                    completed_at=existing["completed_at"],
+                    created_at=existing["created_at"],
+                    error_message=existing["error_message"],
+                )
             row = await conn.fetchrow(
                 """INSERT INTO jobs(id, document_id, status, attempts, created_at)
                    VALUES ($1, $2, $3, 0, $4)

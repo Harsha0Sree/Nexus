@@ -14,7 +14,6 @@ from app.infrastructure.repositories import (
     PgPromptRepository
 )
 from app.infrastructure.storage.s3_storage import S3Storage
-from app.infrastructure.llm.openrouter_provider.py import OpenRouterProvider  # wait, correct module is openrouter_provider
 from app.infrastructure.llm.openrouter_provider import OpenRouterProvider
 from app.application.services.agent_orchestrator import AgentOrchestrator
 

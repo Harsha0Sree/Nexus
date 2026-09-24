@@ -10,11 +10,13 @@ services:
             - "5432:5432"
         volumes:
             - postgres_data:/var/lib/postgresql/data
-            - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+            - ./app/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
 
 
     redis:
         image: redis:7
+        ports:
+            - "6379:6379"
     
     localstack:
         image: localstack/localstack
@@ -27,8 +29,22 @@ services:
         build: .
         depends_on:
             - db
+            - redis
+            - localstack
         ports: 
             - "8000:8000"
+        env_file:
+            - .env
+
+    worker:
+        build: .
+        depends_on:
+            - db
+            - redis
+            - localstack
+        env_file:
+            - .env
+        command: ["uv", "run", "python", "app/workers/processor.py"]
         
 volumes:
     postgres_data:

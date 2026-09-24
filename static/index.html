@@ -3,253 +3,509 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEXUS // Agent Telemetry & Document Retrieval Console</title>
-    <!-- Google Fonts: Syne (headings) & IBM Plex Mono (text/terminal) -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=IBM+Plex+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Main Style -->
-    <link rel="stylesheet" href="/static/style.css">
+    <title>NEXUS // 1-BIT TERMINAL</title>
+    <style>
+        /* 1-BIT BRUTALIST ARCHITECTURE */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: monospace;
+            font-size: 13px;
+            -webkit-font-smoothing: none; /* Forces sharp, non-aliased pixel rendering */
+        }
+
+        body {
+            background-color: #000000;
+            color: #ffffff;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* CORE UTILITIES */
+        .hidden { display: none !important; }
+        .border-b { border-bottom: 1px solid #ffffff; }
+        .border-r { border-right: 1px solid #ffffff; }
+        .border-t { border-top: 1px solid #ffffff; }
+        .p-4 { padding: 16px; }
+        
+        /* 1-BIT FORM CONTROLS */
+        input, button {
+            background-color: #000000;
+            color: #ffffff;
+            border: 1px solid #ffffff;
+            padding: 8px 12px;
+            outline: none;
+            border-radius: 0; /* Strict sharp corners */
+        }
+        
+        input:focus {
+            border-style: double;
+            border-width: 3px;
+            padding: 6px 10px; /* Offset double border width */
+        }
+
+        button {
+            cursor: pointer;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        button:hover, .invert {
+            background-color: #ffffff;
+            color: #000000;
+        }
+
+        /* AUTHENTICATION VIEW */
+        #auth-view {
+            display: flex;
+            height: 100vh;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .auth-box {
+            border: 1px solid #ffffff;
+            width: 340px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        /* APPLICATION LAYOUT */
+        #app-view { display: flex; height: 100vh; width: 100vw; }
+        
+        #sidebar {
+            width: 320px;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+
+        #doc-list {
+            flex: 1;
+            overflow-y: auto;
+            list-style: none;
+        }
+
+        .doc-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 16px;
+            border-bottom: 1px solid #ffffff;
+            cursor: pointer;
+        }
+
+        .doc-item:hover {
+            border-left: 4px solid #ffffff;
+            padding-left: 12px;
+        }
+
+        .doc-item.active {
+            background-color: #ffffff;
+            color: #000000;
+        }
+
+        #workspace {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        #workspace-body {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        #telemetry-pane {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        #chat-pane {
+            width: 420px;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+
+        #chat-log {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .chat-msg {
+            border: 1px solid #ffffff;
+            padding: 10px;
+            width: fit-content;
+            max-width: 90%;
+            white-space: pre-wrap; /* Preserves LLM line breaks */
+        }
+
+        .msg-user {
+            align-self: flex-end;
+            border-style: dashed;
+        }
+
+        .msg-ai { align-self: flex-start; }
+        
+        .msg-sys {
+            align-self: center;
+            border: none;
+            text-decoration: underline;
+        }
+
+        /* ASCII DATA PREVIEWS */
+        pre {
+            border: 1px dotted #ffffff;
+            padding: 10px;
+            overflow-x: auto;
+            margin-top: 8px;
+            background: #000000;
+            color: #ffffff;
+        }
+
+        /* CUSTOM SCROLLBARS (1-BIT) */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #000000; border-left: 1px solid #ffffff; }
+        ::-webkit-scrollbar-thumb { background: #ffffff; }
+    </style>
 </head>
 <body>
-    <div id="app">
-        <!-- DASHBOARD CONTAINER (LOADS IMMEDIATELY - AUTH REMOVED) -->
-        <section id="dashboard-section" class="active">
-            <!-- COCKPIT CONTROL HEADER -->
-            <header class="app-header">
-                <div class="header-logo">
-                    <span class="logo-icon">▰</span>
-                    <h2>NEXUS // SYS_DECK</h2>
-                    <span class="badge badge-amber">ORCHESTRATOR ONLINE</span>
-                </div>
-                
-                <div class="header-metrics">
-                    <div class="metric-pill">
-                        <span class="dot dot-amber"></span>
-                        <span class="metric-label">VOLUMES:</span>
-                        <span id="metric-uploaded" class="metric-val">0</span>
-                    </div>
-                    <div class="metric-pill">
-                        <span class="dot dot-green"></span>
-                        <span class="metric-label">PARSED:</span>
-                        <span id="metric-processed" class="metric-val">0</span>
-                    </div>
-                    <div class="metric-pill">
-                        <span class="dot dot-red"></span>
-                        <span class="metric-label">ABORTED:</span>
-                        <span id="metric-failed" class="metric-val">0</span>
-                    </div>
-                </div>
 
-                <div class="header-system-info">
-                    <span class="sys-time">SYS_TIME: <span id="clock-display">00:00:00</span></span>
-                    <span class="user-identity">OPR_ID: system_operator</span>
-                </div>
-            </header>
-
-            <!-- MAIN INDUSTRIAL WORKSPACE -->
-            <main class="app-workspace">
-                <!-- TELEMETRY SIDEBAR: INGESTION & ARCHIVE -->
-                <aside class="sidebar">
-                    <!-- INGESTION CONSOLE -->
-                    <div class="upload-container">
-                        <h3>[CONSOLE_01] // INGEST_QUEUE</h3>
-                        <div id="drop-zone" class="drop-zone">
-                            <span class="upload-icon">⎋</span>
-                            <p>DRAG & DROP TO INGEST</p>
-                            <span>SUPPORTS PDF, TXT (MAX 10MB)</span>
-                            <input type="file" id="file-input" class="file-input" accept=".pdf,.txt">
-                        </div>
-                        <div id="upload-status" class="upload-status"></div>
-                    </div>
-
-                    <!-- ARCHIVE LIBRARY LIST -->
-                    <div class="doc-list-container">
-                        <div class="doc-list-header">
-                            <h3>[ARCHIVE_02] // DOCUMENTS_FEED</h3>
-                            <button id="refresh-docs-btn" class="btn-refresh" title="SYNC FEED">⟲</button>
-                        </div>
-                        <div id="doc-list" class="doc-list">
-                            <!-- Populated dynamically -->
-                            <div class="doc-list-empty">NO VOLUMES DETECTED IN STORAGE.</div>
-                        </div>
-                    </div>
-                </aside>
-
-                <!-- RUNS TELEMETRY & RESULTS WORKSPACE -->
-                <article class="analysis-pane">
-                    <!-- NO ACTIVE DOCUMENT PANEL -->
-                    <div id="no-selection-state">
-                        <div class="state-icon">⏣</div>
-                        <h3>SYSTEM STANDBY</h3>
-                        <p>Awaiting payload. Select a document volume from the ARCHIVE_FEED or feed a new document into INGEST_QUEUE to begin agent sequence execution.</p>
-                    </div>
-
-                    <!-- ACTIVE SYSTEM TELEMETRY -->
-                    <div id="active-document-state">
-                        <header class="doc-view-header">
-                            <div>
-                                <h1 id="selected-doc-name">agreement.pdf</h1>
-                                <p class="doc-meta">UUID: <span id="selected-doc-id">...</span> • INGEST_TIME: <span id="selected-doc-date">...</span></p>
-                            </div>
-                            <div class="status-badge-container">
-                                <span id="selected-doc-status-badge" class="badge">PENDING</span>
-                            </div>
-                        </header>
-
-                        <!-- DAG PIPELINE TIMELINE -->
-                        <section class="dag-visualizer-card">
-                            <h3>[TELEMETRY_03] // COORD_AGENT_DAG_RUNS</h3>
-                            <div class="dag-flow">
-                                <!-- Ingestion Node -->
-                                <div class="dag-node" id="node-ingestion">
-                                    <div class="node-icon">◆</div>
-                                    <div class="node-info">
-                                        <h4>INGESTION_AGT</h4>
-                                        <span class="node-status">PENDING</span>
-                                    </div>
-                                </div>
-                                <div class="dag-connector"></div>
-
-                                <!-- Classification Node -->
-                                <div class="dag-node" id="node-classification">
-                                    <div class="node-icon">◆</div>
-                                    <div class="node-info">
-                                        <h4>CLASSIFY_AGT</h4>
-                                        <span class="node-status">PENDING</span>
-                                    </div>
-                                </div>
-                                <div class="dag-connector"></div>
-
-                                <!-- Parallel Execution Group -->
-                                <div class="dag-parallel-group">
-                                    <!-- Metadata Node -->
-                                    <div class="dag-node" id="node-metadata">
-                                        <div class="node-icon">◆</div>
-                                        <div class="node-info">
-                                            <h4>METADATA_AGT</h4>
-                                            <span class="node-status">PENDING</span>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- Summarization Node -->
-                                    <div class="dag-node" id="node-summarization">
-                                        <div class="node-icon">◆</div>
-                                        <div class="node-info">
-                                            <h4>SUMMARY_AGT</h4>
-                                            <span class="node-status">PENDING</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="dag-connector"></div>
-
-                                <!-- Embedding Node -->
-                                <div class="dag-node" id="node-embedding">
-                                    <div class="node-icon">◆</div>
-                                    <div class="node-info">
-                                        <h4>EMBEDDING_AGT</h4>
-                                        <span class="node-status">PENDING</span>
-                                    </div>
-                                </div>
-                                <div class="dag-connector risk-connector"></div>
-
-                                <!-- Risk Analysis Node (Conditional) -->
-                                <div class="dag-node risk-node" id="node-risk_analysis">
-                                    <div class="node-icon">▲</div>
-                                    <div class="node-info">
-                                        <h4>RISK_ANAL_AGT</h4>
-                                        <span class="node-status">SKIPPED</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </section>
-
-                        <!-- DATA VISUALIZER VIEWPORTS -->
-                        <div class="workspace-viewport">
-                            <!-- Telemetry Details Tab Pane -->
-                            <div class="results-viewer">
-                                <nav class="results-tabs">
-                                    <button class="results-tab-btn active" data-tab="tab-summary">// SUM_SUMMARY</button>
-                                    <button class="results-tab-btn" data-tab="tab-metadata">// META_DAT</button>
-                                    <button class="results-tab-btn" id="risk-tab-btn" data-tab="tab-risk">// RISK_AUDIT</button>
-                                </nav>
-
-                                <div class="tab-viewport">
-                                    <!-- Summary Tab -->
-                                    <div class="tab-pane active" id="tab-summary">
-                                        <div class="summary-content markdown-body" id="summary-view">
-                                            <p class="placeholder-text">Waiting for agent compilation...</p>
-                                        </div>
-                                    </div>
-
-                                    <!-- Metadata Tab -->
-                                    <div class="tab-pane" id="tab-metadata">
-                                        <div class="metadata-grid">
-                                            <div class="meta-card">
-                                                <h5>FILE_CLASSIFICATION</h5>
-                                                <div id="meta-class" class="meta-val badge badge-amber">N/A</div>
-                                            </div>
-                                            <div class="meta-card">
-                                                <h5>EXTRACTED_AUTHORS</h5>
-                                                <div id="meta-authors" class="tag-cloud">
-                                                    <span class="no-tags">NO_RECORDS</span>
-                                                </div>
-                                            </div>
-                                            <div class="meta-card">
-                                                <h5>COMPANIES_&_ORGS</h5>
-                                                <div id="meta-companies" class="tag-cloud">
-                                                    <span class="no-tags">NO_RECORDS</span>
-                                                </div>
-                                            </div>
-                                            <div class="meta-card">
-                                                <h5>DETECTOR_DATES</h5>
-                                                <div id="meta-dates" class="tag-cloud">
-                                                    <span class="no-tags">NO_RECORDS</span>
-                                                </div>
-                                            </div>
-                                            <div class="meta-card span-all">
-                                                <h5>EXTRACTED_KEYWORDS</h5>
-                                                <div id="meta-keywords" class="tag-cloud">
-                                                    <span class="no-tags">NO_RECORDS</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Risk Audit Tab -->
-                                    <div class="tab-pane" id="tab-risk">
-                                        <div id="risk-view" class="risk-content markdown-body">
-                                            <p class="placeholder-text">Awaiting risk analysis audit compilation...</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Q&A CONSOLE PANEL (RAG AGENT INTERACTIVE RUNNER) -->
-                            <div class="chat-terminal">
-                                <div class="chat-header">
-                                    <h4>[QUERY_04] // RAG_AGENT_INTERACTION</h4>
-                                </div>
-                                <div class="chat-messages" id="chat-messages">
-                                    <div class="message assistant-message">
-                                        <div class="message-bubble">
-                                            SYS // RAG vector storage connection verified. Awaiting query commands...
-                                        </div>
-                                    </div>
-                                </div>
-                                <form id="chat-form" class="chat-input-area">
-                                    <input type="text" id="chat-input" required placeholder="INPUT_QUERY_HERE (e.g. key covenants?)..." autocomplete="off">
-                                    <button type="submit" id="chat-send-btn" class="btn btn-indigo">QUERY ✦</button>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-                </article>
-            </main>
-        </section>
+    <!-- AUTHENTICATION VIEW -->
+    <div id="auth-view">
+        <form class="auth-box" id="auth-form">
+            <div style="text-align: center; font-weight: bold; font-size: 16px;">NEXUS // SYS_AUTH</div>
+            <hr style="border-color: #ffffff;">
+            <div>
+                <label style="display:block; margin-bottom: 4px;">OPERATOR_ID:</label>
+                <input type="email" id="auth-email" style="width: 100%;" placeholder="user@domain.com" required>
+            </div>
+            <div>
+                <label style="display:block; margin-bottom: 4px;">ACCESS_PIN:</label>
+                <input type="password" id="auth-pwd" style="width: 100%;" placeholder="••••••••" required>
+            </div>
+            <div style="display: flex; gap: 8px; margin-top: 8px;">
+                <button type="submit" style="flex: 1;" onclick="setAuthAction('login')">AUTH</button>
+                <button type="submit" style="flex: 1; border-style: dashed;" onclick="setAuthAction('register')">NEW_KEY</button>
+            </div>
+            <div id="auth-status" style="text-align: center; min-height: 16px;"></div>
+        </form>
     </div>
 
-    <!-- Main Controller Logic -->
-    <script src="/static/app.js"></script>
+    <!-- APPLICATION VIEW -->
+    <div id="app-view" class="hidden">
+        
+        <!-- LEFT CONTROL DECK -->
+        <div id="sidebar" class="border-r">
+            <div class="p-4 border-b" style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-weight: bold;">NEXUS_v1.0</span>
+                <button onclick="sessionTerminate()" style="padding: 2px 6px; font-size: 11px;">EXIT</button>
+            </div>
+
+            <form id="ingest-form" class="p-4 border-b" style="display: flex; flex-direction: column; gap: 8px;">
+                <span style="text-decoration: underline;">VOLUME INGESTION DECK</span>
+                <input type="file" id="file-picker" required style="padding: 4px; border: none;">
+                <button type="submit" class="invert" style="width: 100%;">TRANSMIT PAYLOAD</button>
+                <span id="ingest-status" style="font-size: 11px; text-align: center;"></span>
+            </form>
+
+            <div class="p-4 border-b" style="font-weight: bold;">ARCHIVED INDEXES:</div>
+            <ul id="doc-list"></ul>
+        </div>
+
+        <!-- RIGHT WORKSPACE -->
+        <div id="workspace">
+            <div class="p-4 border-b" style="display: flex; justify-content: space-between;">
+                <span id="target-title">TARGET: [NONE SELECTED]</span>
+                <span id="target-uuid">UUID: 00000000-0000-0000-0000-000000000000</span>
+            </div>
+
+            <div id="workspace-body">
+                
+                <!-- TELEMETRY MATRIX -->
+                <div id="telemetry-pane" class="border-r">
+                    <div id="matrix-display" style="color: #666666;">Awaiting target lock...</div>
+                </div>
+
+                <!-- RAG INTERROGATION DECK -->
+                <div id="chat-pane" class="hidden">
+                    <div id="chat-log">
+                        <div class="chat-msg msg-sys">SECURE RAG CHANNEL OPEN</div>
+                    </div>
+                    <form id="query-form" class="border-t p-4" style="display: flex; gap: 8px; background: #000000;">
+                        <input type="text" id="query-input" placeholder="Interrogate vector matrix..." style="flex: 1;" required autocomplete="off">
+                        <button type="submit" class="invert">EXEC</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. MEMORY & RUNTIME STATE ---
+        const SYS = {
+            token: localStorage.getItem('nexus_auth_key'),
+            activeId: null,
+            authType: 'login'
+        };
+
+        const DOM = {
+            authView: document.getElementById('auth-view'),
+            appView: document.getElementById('app-view'),
+            authForm: document.getElementById('auth-form'),
+            authStatus: document.getElementById('auth-status'),
+            docList: document.getElementById('doc-list'),
+            ingestForm: document.getElementById('ingest-form'),
+            ingestStatus: document.getElementById('ingest-status'),
+            targetTitle: document.getElementById('target-title'),
+            targetUuid: document.getElementById('target-uuid'),
+            matrixDisplay: document.getElementById('matrix-display'),
+            chatPane: document.getElementById('chat-pane'),
+            chatLog: document.getElementById('chat-log'),
+            queryForm: document.getElementById('query-form')
+        };
+
+        // --- 2. NETWORK PROTOCOL LAYER ---
+        async function emit(path, options = {}) {
+            const config = { ...options, headers: { ...options.headers } };
+            
+            if (SYS.token && !config.skipAuth) {
+                config.headers['Authorization'] = `Bearer ${SYS.token}`;
+            }
+
+            try {
+                const res = await fetch(path, config);
+                
+                if (res.status === 401) {
+                    sessionTerminate();
+                    throw new Error("ERR_401: KEY_REVOKED");
+                }
+
+                const payload = res.headers.get('content-type')?.includes('json') 
+                    ? await res.json() 
+                    : await res.text();
+
+                if (!res.ok) throw new Error(payload.detail || `ERR_${res.status}: TRANSMISSION_FAIL`);
+                return payload;
+            } catch (e) {
+                console.error(`[TX_DROP -> ${path}]:`, e);
+                throw e;
+            }
+        }
+
+        // --- 3. ASCII TYPOGRAPHY MAPPINGS ---
+        function formatAsciiStatus(rawStatus) {
+            const s = (rawStatus || '').toLowerCase();
+            if (s.includes('fail') || s.includes('err')) return '[FAIL]';
+            if (s.includes('process') || s.includes('run')) return '[BUSY]';
+            if (s.includes('ok') || s.includes('complete')) return '[ OK ]';
+            return '[WAIT]';
+        }
+
+        // --- 4. AUTHENTICATION ROUTER ---
+        function setAuthAction(type) { SYS.authType = type; }
+
+        DOM.authForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            DOM.authStatus.innerText = "VERIFYING...";
+            
+            const payload = JSON.stringify({
+                email: document.getElementById('auth-email').value,
+                password: document.getElementById('auth-pwd').value
+            });
+
+            const headers = { 'Content-Type': 'application/json' };
+
+            try {
+                if (SYS.authType === 'register') {
+                    await emit('/register', { method: 'POST', body: payload, headers, skipAuth: true });
+                    DOM.authStatus.innerText = "KEY_GENERATED. ATTEMPTING HANDSHAKE...";
+                }
+
+                const res = await emit('/login', { method: 'POST', body: payload, headers, skipAuth: true });
+                SYS.token = typeof res === 'string' ? res : res.access_token;
+                localStorage.setItem('nexus_auth_key', SYS.token);
+                
+                mountWorkspace();
+            } catch (err) {
+                DOM.authStatus.innerText = err.message;
+            }
+        });
+
+        function sessionTerminate() {
+            localStorage.removeItem('nexus_auth_key');
+            SYS.token = null;
+            SYS.activeId = null;
+            DOM.authView.classList.remove('hidden');
+            DOM.appView.classList.add('hidden');
+        }
+
+        function mountWorkspace() {
+            DOM.authView.classList.add('hidden');
+            DOM.appView.classList.remove('hidden');
+            pullArchiveFeed();
+            setInterval(pullArchiveFeed, 4000); // Background DAG state sync
+        }
+
+        // --- 5. INGESTION CONTROLLER ---
+        DOM.ingestForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const input = document.getElementById('file-picker');
+            if (!input.files.length) return;
+
+            DOM.ingestStatus.innerText = "STREAMING_BYTES...";
+            const data = new FormData();
+            data.append('file', input.files[0]);
+
+            try {
+                await emit('/documents', { method: 'POST', body: data });
+                DOM.ingestStatus.innerText = "[TX_SUCCESS]";
+                input.value = '';
+                pullArchiveFeed();
+            } catch (err) {
+                DOM.ingestStatus.innerText = err.message;
+            }
+        });
+
+        // --- 6. ARCHIVE RENDERER ---
+        async function pullArchiveFeed() {
+            if (!SYS.token) return;
+            try {
+                const list = await emit('/documents');
+                renderArchive(list);
+            } catch (e) {
+                console.warn("INDEX_SYNC_DROPPED");
+            }
+        }
+
+        function renderArchive(list) {
+            DOM.docList.innerHTML = '';
+            if (!list.length) {
+                DOM.docList.innerHTML = '<li style="padding:16px; text-align:center;">[INDEX_EMPTY]</li>';
+                return;
+            }
+
+            list.forEach(doc => {
+                const li = document.createElement('li');
+                li.className = `doc-item ${SYS.activeId === doc.id ? 'active' : ''}`;
+                li.onclick = () => lockTarget(doc.id, doc.file_name);
+                
+                const asciiBadge = formatAsciiStatus(doc.status);
+                li.innerHTML = `
+                    <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width: 190px;">
+                        ${doc.file_name}
+                    </span>
+                    <span style="font-weight:bold;">${asciiBadge}</span>
+                `;
+                DOM.docList.appendChild(li);
+            });
+        }
+
+        // --- 7. TELEMETRY TARGET LOCK ---
+        async function lockTarget(id, filename) {
+            SYS.activeId = id;
+            DOM.targetTitle.innerText = `TARGET: ${filename}`;
+            DOM.targetUuid.innerText = `UUID: ${id}`;
+            DOM.chatPane.classList.remove('hidden');
+            
+            document.querySelectorAll('.doc-item').forEach(el => el.classList.remove('active'));
+            const matchedEl = Array.from(document.querySelectorAll('.doc-item')).find(e => e.innerText.includes(filename));
+            if(matchedEl) matchedEl.classList.add('active');
+
+            DOM.matrixDisplay.innerHTML = "PULLING_TARGET_MATRIX...";
+
+            try {
+                const [doc, runs] = await Promise.all([
+                    emit(`/documents/${id}`),
+                    emit(`/documents/${id}/runs`)
+                ]);
+                compileMatrix(doc, runs);
+            } catch (err) {
+                DOM.matrixDisplay.innerHTML = `[MATRIX_CORRUPTED: ${err.message}]`;
+            }
+        }
+
+        function compileMatrix(doc, runs) {
+            const asciiBadge = formatAsciiStatus(doc.status);
+            let out = `
++-------------------------------------------------------------+
+| TARGET TELEMETRY MATRIX                                     |
++-------------------------------------------------------------+
+ STATUS        : ${asciiBadge} (${doc.status})
+ CREATED       : ${new Date(doc.created_at).toISOString()}
+ CLASS_EST     : ${doc.classification || 'UNRESOLVED'}
+`;
+            
+            if (doc.summary) {
+                out += `\n+---[ EXTRACTED SUMMARY ]-------------------------------------\n${doc.summary}\n`;
+            }
+
+            if (doc.metadata) {
+                out += `\n+---[ RAW JSON METADATA ]-------------------------------------\n${JSON.stringify(doc.metadata, null, 2)}\n`;
+            }
+
+            if (runs && runs.length) {
+                out += `\n+---[ DAG WORKER TELEMETRY ]----------------------------------\n`;
+                runs.forEach(r => {
+                    const rBadge = formatAsciiStatus(r.status);
+                    out += ` ${rBadge} | AGENT: ${r.agent_name.padEnd(25, ' ')} | ID: ${r.id}\n`;
+                });
+            }
+
+            DOM.matrixDisplay.innerHTML = `<pre style="border:none; padding:0; margin:0;">${out}</pre>`;
+        }
+
+        // --- 8. RAG INTERROGATOR ---
+        DOM.queryForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!SYS.activeId) return;
+
+            const input = document.getElementById('query-input');
+            const q = input.value.trim();
+            if (!q) return;
+
+            printMsg(q, 'user');
+            input.value = '';
+            const indicator = printMsg('>>> INTERROGATING_EMBEDDINGS...', 'sys');
+
+            try {
+                const res = await emit(`/documents/${SYS.activeId}/ask`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question: q })
+                });
+
+                indicator.remove();
+                printMsg(res.answer, 'ai');
+            } catch (err) {
+                indicator.remove();
+                printMsg(`[FAILED: ${err.message}]`, 'sys');
+            }
+        });
+
+        function printMsg(txt, origin) {
+            const node = document.createElement('div');
+            node.className = `chat-msg msg-${origin}`;
+            node.innerText = txt;
+            DOM.chatLog.appendChild(node);
+            DOM.chatLog.scrollTop = DOM.chatLog.scrollHeight;
+            return node;
+        }
+
+        // Auto-mount if key exists in memory
+        if (SYS.token) mountWorkspace();
+    </script>
 </body>
 </html>

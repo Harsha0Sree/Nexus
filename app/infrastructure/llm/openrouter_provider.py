@@ -5,13 +5,15 @@ import httpx
 from app.config.config import Settings
 from app.domain.entities import LLMUsage
 from app.domain.ports import LLMProvider, LLMUsageRepository
+from app.infrastructure.resilience import CircuitBreaker, retry_async
 
 
 class OpenRouterProvider(LLMProvider):
     def __init__(self, settings: Settings, usage_repo: LLMUsageRepository | None = None):
         self.settings = settings
         self.usage_repo = usage_repo
-        self.client = httpx.AsyncClient(timeout=60.0)
+        self.client = httpx.AsyncClient(timeout=httpx.Timeout(30.0, connect=10.0))
+        self.circuit_breaker = CircuitBreaker()
 
     async def generate(self, prompt: str, system_prompt: str | None = None) -> str:
         # Fallback for testing/fake key
@@ -61,10 +63,14 @@ class OpenRouterProvider(LLMProvider):
         }
 
         try:
-            response = await self.client.post(
-                "https://openrouter.ai/api/v1/chat/completions",
-                headers=headers,
-                json=payload
+            response = await self.circuit_breaker.call(
+                lambda: retry_async(
+                    lambda: self.client.post(
+                        "https://openrouter.ai/api/v1/chat/completions",
+                        headers=headers,
+                        json=payload
+                    )
+                )
             )
             response.raise_for_status()
             data = response.json()
@@ -104,23 +110,31 @@ class OpenRouterProvider(LLMProvider):
         
         payload = {
             "input": text,
-            "model": "text-embedding-3-small"
+            "model": self.settings.openrouter_embedding_model
         }
 
         try:
             # We can use standard OpenRouter or OpenAI embedding API endpoint
             # OpenRouter passes this through to OpenAI
-            response = await self.client.post(
-                "https://openrouter.ai/api/v1/embeddings",
-                headers=headers,
-                json=payload
+            response = await self.circuit_breaker.call(
+                lambda: retry_async(
+                    lambda: self.client.post(
+                        "https://openrouter.ai/api/v1/embeddings",
+                        headers=headers,
+                        json=payload
+                    )
+                )
             )
             if response.status_code != 200:
                 # Try OpenAI direct embedding endpoint as fallback
-                response = await self.client.post(
-                    "https://api.openai.com/v1/embeddings",
-                    headers={"Authorization": f"Bearer {self.settings.openrouter_api_key}", "Content-Type": "application/json"},
-                    json=payload
+                response = await self.circuit_breaker.call(
+                    lambda: retry_async(
+                        lambda: self.client.post(
+                            "https://api.openai.com/v1/embeddings",
+                            headers={"Authorization": f"Bearer {self.settings.openrouter_api_key}", "Content-Type": "application/json"},
+                            json=payload
+                        )
+                    )
                 )
             
             response.raise_for_status()
@@ -134,7 +148,7 @@ class OpenRouterProvider(LLMProvider):
             if self.usage_repo:
                 await self.usage_repo.log_usage(LLMUsage(
                     id=uuid.uuid4(),
-                    model="text-embedding-3-small",
+                    model=self.settings.openrouter_embedding_model,
                     prompt_tokens=prompt_tokens,
                     completion_tokens=0,
                     cost_usd=cost

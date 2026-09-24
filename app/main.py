@@ -8,6 +8,8 @@ from fastapi import Depends, FastAPI, File, UploadFile, Request, HTTPException, 
 from fastapi.security import HTTPBearer
 from fastapi.responses import PlainTextResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, EmailStr, Field
 
 from app.application.auth_service import AuthService
 from app.application.document_service import DocumentService
@@ -22,6 +24,7 @@ from app.infrastructure.repositories import (
     PgPromptRepository
 )
 from app.infrastructure.llm.openrouter_provider import OpenRouterProvider
+from app.infrastructure.token_store import InMemoryTokenStore, RedisTokenStore
 
 # Configure logging
 logging.basicConfig(
@@ -35,9 +38,20 @@ logger = logging.getLogger("api")
 async def lifespan(app: FastAPI):
     app.state.pool = await create_pool_connection()
     app.state.security = HTTPBearer()
+    app.state.redis = None
+    try:
+        from redis.asyncio import Redis
+
+        app.state.redis = Redis.from_url(get_settings().redis_url, decode_responses=True)
+        await app.state.redis.ping()
+        app.state.token_store = RedisTokenStore(app.state.redis)
+    except Exception:
+        app.state.token_store = InMemoryTokenStore()
     try:
         yield
     finally:
+        if app.state.redis:
+            await app.state.redis.aclose()
         await app.state.pool.close()
 
 
@@ -100,12 +114,36 @@ def get_healthz():
     return {"status": "ok"}
 
 
+@app.get("/livez")
+def get_livez():
+    return {"status": "alive"}
+
+
+@app.get("/readyz")
+async def get_readyz(request: Request):
+    try:
+        async with request.app.state.pool.acquire() as conn:
+            await conn.fetchval("SELECT 1")
+        if request.app.state.redis:
+            await request.app.state.redis.ping()
+        return {"status": "ready"}
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+
+
 @app.post("/register")
 async def register_new_user(
     payload: UserCreate, auth_service: AuthService = Depends(get_auth_service)
 ):
     await auth_service.register(payload.email, payload.password)
     return {"message": f"user {payload.email} has been created"}
+
+
+@app.post("/auth/register")
+async def auth_register_new_user(
+    payload: UserCreate, auth_service: AuthService = Depends(get_auth_service)
+):
+    return await register_new_user(payload, auth_service)
 
 
 @app.post("/login")
@@ -119,6 +157,55 @@ async def login(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="invalid credentials",
     )
+
+
+@app.post("/auth/login")
+async def auth_login(
+    payload: UserCreate, auth_service: AuthService = Depends(get_auth_service)
+):
+    return await login(payload, auth_service)
+
+
+class RefreshRequest(BaseModel):
+    refresh_token: str
+
+
+class LogoutRequest(BaseModel):
+    refresh_token: str | None = None
+
+
+@app.post("/auth/refresh")
+async def refresh_token(
+    payload: RefreshRequest, auth_service: AuthService = Depends(get_auth_service)
+):
+    try:
+        return await auth_service.refresh(payload.refresh_token)
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc))
+
+
+@app.post("/auth/logout")
+async def logout(
+    payload: LogoutRequest,
+    credentials=Depends(HTTPBearer(auto_error=False)),
+    auth_service: AuthService = Depends(get_auth_service),
+):
+    access_token = credentials.credentials if credentials else None
+    try:
+        await auth_service.logout(access_token=access_token, refresh_token=payload.refresh_token)
+        return {"message": "logged out"}
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc))
+
+
+@app.get("/auth/me")
+async def get_current_user_profile(current_user: User = Depends(get_user)):
+    return {
+        "id": str(current_user.id),
+        "email": current_user.email,
+        "username": current_user.username,
+        "created_at": current_user.created_at.isoformat() if current_user.created_at else None,
+    }
 
 
 @app.post("/documents", status_code=202)
@@ -282,7 +369,7 @@ async def get_prometheus_metrics(request: Request):
         # 1. Upload counts
         uploaded = await conn.fetchval("SELECT COUNT(*) FROM documents")
         # 2. Processed counts
-        processed = await conn.fetchval("SELECT COUNT(*) FROM documents WHERE status = 'processed'")
+        processed = await conn.fetchval("SELECT COUNT(*) FROM documents WHERE status IN ('processed', 'completed')")
         # 3. Agent failures
         failures = await conn.fetchval("SELECT COUNT(*) FROM agent_runs WHERE status = 'failed'")
         # 4. LLM metrics

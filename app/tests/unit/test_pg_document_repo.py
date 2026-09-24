@@ -3,15 +3,19 @@ from uuid import UUID, uuid4
 
 import pytest
 import pytest_asyncio
+import socket
 
 from app.domain.entities import Document
 from app.infrastructure.postgres import create_test_pool_connection
 from app.infrastructure.repositories import PostgresDocumentRepository
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def startup():
-    pool = await create_test_pool_connection()
+    try:
+        pool = await create_test_pool_connection()
+    except (OSError, socket.gaierror) as exc:
+        pytest.skip(f"Postgres test database is not available: {exc}")
     document = Document(
         id=uuid4(),
         user_id=UUID("123e4567-e89b-12d3-a456-426614174000"),
@@ -20,7 +24,10 @@ async def startup():
         created_at=datetime.now(),
         s3_key="documents/report.pdf",
     )
-    return pool, document
+    try:
+        yield pool, document
+    finally:
+        await pool.close()
 
 
 @pytest_asyncio.fixture
